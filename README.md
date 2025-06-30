@@ -1,4 +1,3 @@
-````markdown
 # 🔗 LinkedIn Automation with Image Generation
 
 An end-to-end workflow that automatically generates, formats, and posts engaging content to LinkedIn — complete with AI-generated images!
