@@ -1,0 +1,623 @@
+{
+  "name": "My workflow 4",
+  "nodes": [
+    {
+      "parameters": {
+        "fieldsToAggregate": {
+          "fieldToAggregate": [
+            {
+              "fieldToAggregate": "title"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "2eb2a929-8809-4900-8eb5-89836be25542",
+      "name": "Aggregate Titles",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        740,
+        1260
+      ]
+    },
+    {
+      "parameters": {
+        "prompt": "=You are a top-performing LinkedIn content strategist trusted by influential creators in AI, tech, and leadership.\n\nYour task is to generate a visually optimized, high-engagement LinkedIn post using the following topic:  \n**\"{{ $json.text }}\"**\n\nFollow these rules strictly to match LinkedIn’s formatting and engagement standards:\n\n---\n\n📌 **STRUCTURE:**\n1. Start with a scroll-stopping **hook** — make it punchy and emotion-triggering.  \n   ✨ Use ALL CAPS or add an emoji for impact (LinkedIn doesn’t support bold).  \n2. Write a 3–4 sentence **insightful summary** that gives value or perspective.\n3. Include **bullet points**, using emojis as visual markers (📌, 📊, ✍️, ⚙️, 💡, 🤖 etc.).\n4. End with a **strong call-to-action (CTA)**. Encourage the reader to reflect or comment.\n5. Use clean **line spacing** between sections for visual readability.\n6. Add **12 to 15 well-curated hashtags** that match the post context (format as `#AI`, not `hashtag#AI`).\n\n---\n\n🧠 **TONE:**\nConfident, value-driven, conversational — like a modern tech thought leader.\n\n---\n\n🎯 **OUTPUT FORMAT:**\nReturn only a valid JSON object. No markdown fences, no explanation, no extra notes. Use exactly this structure:\n\n```json\n{\n  \"post\": \"<LinkedIn-ready post text with emojis, spacing, all-caps emphasis, and bullet points>\",\n  \"hashtags\": [\"#AI\", \"#FutureOfWork\", \"#Innovation\", \"...\"]\n}\n"
+      },
+      "id": "ed3b10b8-0f60-4063-83dd-ce70dbb34eb6",
+      "name": "Generate LinkedIn Post",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1,
+      "position": [
+        1336,
+        1260
+      ]
+    },
+    {
+      "parameters": {
+        "jsonSchema": "{\n  \"$schema\": \"http://json-schema.org/draft-07/schema#\",\n  \"type\": \"object\",\n  \"properties\": {\n    \"post\": {\n      \"type\": \"string\",\n      \"description\": \"Formatted LinkedIn post text including emojis and line breaks; includes a hook, summary, and CTA. Do not include hashtags here.\"\n    },\n    \"hashtags\": {\n      \"type\": \"array\",\n      \"items\": { \"type\": \"string\" },\n      \"description\": \"A list of relevant hashtags\"\n    }\n  },\n  \"required\": [\"post\", \"hashtags\"],\n  \"additionalProperties\": false\n}\n"
+      },
+      "id": "d210daec-9cf4-437f-ac70-e56a781ec265",
+      "name": "Parse LLM Output",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1,
+      "position": [
+        1424,
+        1480
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Add your key here"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Accept",
+              "value": "image/png"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"inputs\": \"={{ $json.text }}\"\n}\n",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "0a4b9135-0028-4e6c-ba33-8dd50a291b9c",
+      "name": "Generate Image",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        2088,
+        1135
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const outputItems = [];\n\nfor (const item of items) {\n  // Always pull from the correct source\n  const post = item.json.post || item.json.output?.post || '';\n  const hashtagsArray = item.json.hashtags || item.json.output?.hashtags || [];\n\n  let formattedHashtags = '';\n  if (Array.isArray(hashtagsArray)) {\n    formattedHashtags = hashtagsArray\n      .map(tag => (tag.startsWith('#') ? tag : `#${tag}`))\n      .join(' ');\n  }\n\n  const fullText = `${post}\\n\\n${formattedHashtags}`.trim();\n\n  outputItems.push({\n    json: {\n      text: fullText, // This is the correct caption!\n    },\n    binary: {\n      data: item.binary?.data, // The image stays here\n    },\n  });\n}\n\nreturn outputItems;\n"
+      },
+      "id": "a4c8a1e0-b4d9-4254-ab4e-f9ea48d51102",
+      "name": "Format Post + Image",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2528,
+        1260
+      ]
+    },
+    {
+      "parameters": {
+        "postAs": "organization",
+        "organization": "Add your organization URN here",
+        "text": "={{ $json.text }}",
+        "shareMediaCategory": "IMAGE",
+        "additionalFields": {}
+      },
+      "id": "3408db9b-399f-4603-ae95-48bcbc08679e",
+      "name": "Post to LinkedIn",
+      "type": "n8n-nodes-base.linkedIn",
+      "typeVersion": 1,
+      "position": [
+        2748,
+        1260
+      ],
+      "credentials": {
+        "linkedInOAuth2Api": {
+          "id": "dxU86jiYnoPvWtrS",
+          "name": "LinkedIn account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.5-flash-preview-04-17-thinking",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        1048,
+        1480
+      ],
+      "id": "5c080614-fe26-4afc-a9a9-1283a4f2ac2a",
+      "name": "Google Gemini Chat Model2",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "qOYjUchlc49v1DSb",
+          "name": "Google Gemini(PaLM) Api account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "e8002510-9eec-43f5-8bcc-a1d72cc7f646",
+              "leftValue": "={{ $json.pubDate ? DateTime.fromFormat($json.pubDate, \"ccc, dd LLL yyyy HH:mm:ss z\", { zone: 'utc' }).toFormat('yyyy-MM-dd') : '1900-01-01' }}\n",
+              "rightValue": "={{ $now.minus({ days: 2 }).toFormat('yyyy-MM-dd') }}",
+              "operator": {
+                "type": "dateTime",
+                "operation": "afterOrEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        520,
+        1260
+      ],
+      "id": "4d0df1eb-ef7f-4e2a-9d72-47de48b1ffa0",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 17
+            },
+            {
+              "field": "cronExpression",
+              "expression": "0 6 * * TUE"
+            },
+            {
+              "field": "cronExpression",
+              "expression": "0 6 * * WED"
+            },
+            {
+              "field": "cronExpression",
+              "expression": "0 6 * * THU"
+            },
+            {
+              "field": "cronExpression",
+              "expression": "0 7 * * FRI"
+            },
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * SAT"
+            },
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * SUN"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -140,
+        1260
+      ],
+      "id": "1a8267a8-ed41-499d-a869-c38e798f3f0f",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an elite LinkedIn content strategist trusted by top-tier creators and professionals to identify only the most engaging, insightful, and viral post topics. \n\nFrom the following list of titles, select exactly **one** topic that:\n- Is highly relevant to professionals in the fields of AI, machine learning, tech innovation, or student growth.\n- Sparks curiosity or conversation (has emotional, social, or aspirational pull).\n- Has the potential to perform well on LinkedIn by encouraging saves, shares, and comments.\n- Aligns with platform-safe content guidelines (no politics, legal disputes, or sensitive themes).\n\nBe strict. Only select a title that meets the above criteria. If none of the titles qualify, respond with exactly: `no`.\n\nHere is the list of titles to choose from:\n{{ $json.title }}\n",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        960,
+        1260
+      ],
+      "id": "3b657536-1507-49b4-8faf-5e512c9dfb1b",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineAll",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.1,
+      "position": [
+        2308,
+        1260
+      ],
+      "id": "4e3bf60d-1407-48df-bb9a-187be546a884",
+      "name": "Merge2",
+      "executeOnce": false,
+      "retryOnFail": false,
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "url": "https://news.google.com/rss/search?q=Indian+Hackathon&hl=en-US&gl=US&ceid=US:en",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.1,
+      "position": [
+        80,
+        1360
+      ],
+      "id": "8f00bbd1-333f-4921-bc30-ccead195ef71",
+      "name": "RSS Read4"
+    },
+    {
+      "parameters": {
+        "url": "https://news.google.com/rss/search?q=Machine+Learning&hl=en-US&gl=US&ceid=US:en",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.1,
+      "position": [
+        80,
+        960
+      ],
+      "id": "100381d0-0936-48b5-be47-92dc8759ced5",
+      "name": "RSS Read5"
+    },
+    {
+      "parameters": {
+        "url": "https://news.google.com/rss/search?q=AI+Machine+Learning+Gesture+Voice+Student+Environment+Tech+Productivity&hl=en-US&gl=US&ceid=US:en",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.1,
+      "position": [
+        80,
+        1160
+      ],
+      "id": "323010a1-6d35-4ae8-976d-251b6bd5dd96",
+      "name": "RSS Read6"
+    },
+    {
+      "parameters": {
+        "numberInputs": 4
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.1,
+      "position": [
+        300,
+        1239
+      ],
+      "id": "39d08195-5cd4-4f18-a823-635bc2fac860",
+      "name": "Merge3",
+      "executeOnce": false,
+      "retryOnFail": false,
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "url": "https://news.google.com/rss/search?q=AI+Machine+Learning+gesture+voice+environment+student+tech+automation&hl=en-US&gl=US&ceid=US:en",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.1,
+      "position": [
+        80,
+        1560
+      ],
+      "id": "4ca5b7cd-910e-444b-97b3-0dd936c91ff0",
+      "name": "RSS Read7"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a world-class visual storytelling assistant. Based on the following LinkedIn post, generate a vivid, concise, and imaginative **image generation prompt**.\n\nThe image prompt should:\n- Visually represent the **core idea** or **emotion** of the post\n- Include **concrete objects, settings, or characters** to help AI models visualize it clearly\n- Avoid abstract buzzwords (e.g., \"growth\", \"efficiency\") — instead, turn them into visual scenes\n- Be **long descriptive (under 150 words)**, **descriptive**, and use a cinematic or illustrative style\n\nPost:\n\"{{ $json.post }}\"\n\n🎯 Output ONLY the image prompt — no explanation, markdown, or extra formatting.\n",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        1712,
+        1135
+      ],
+      "id": "0d95f9fc-fcea-4fb6-8f2a-e52bcf49632a",
+      "name": "Image Generation Prompt1"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.0-flash-thinking-exp",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        1800,
+        1355
+      ],
+      "id": "6818daf5-f5a4-4c81-aa8c-2504e00f1680",
+      "name": "Google Gemini Chat Model3",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "qOYjUchlc49v1DSb",
+          "name": "Google Gemini(PaLM) Api account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Linked in Post Generation",
+        "height": 520,
+        "width": 720,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        916,
+        1100
+      ],
+      "typeVersion": 1,
+      "id": "ceabb005-b78e-496f-98a2-01eee4cc08b2",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "## Free Image generation related to the post",
+        "height": 500,
+        "width": 540,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1680,
+        995
+      ],
+      "typeVersion": 1,
+      "id": "dabc5600-1760-4c3a-89ae-1afe38e8b54c",
+      "name": "Sticky Note3"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Aggregate Titles": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate LinkedIn Post": {
+      "main": [
+        [
+          {
+            "node": "Image Generation Prompt1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse LLM Output": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Generate LinkedIn Post",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Image": {
+      "main": [
+        [
+          {
+            "node": "Merge2",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Format Post + Image": {
+      "main": [
+        [
+          {
+            "node": "Post to LinkedIn",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Generate LinkedIn Post",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Titles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "RSS Read4",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "RSS Read5",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "RSS Read6",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "RSS Read7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Generate LinkedIn Post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge2": {
+      "main": [
+        [
+          {
+            "node": "Format Post + Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RSS Read4": {
+      "main": [
+        [
+          {
+            "node": "Merge3",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "RSS Read5": {
+      "main": [
+        [
+          {
+            "node": "Merge3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RSS Read6": {
+      "main": [
+        [
+          {
+            "node": "Merge3",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge3": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RSS Read7": {
+      "main": [
+        [
+          {
+            "node": "Merge3",
+            "type": "main",
+            "index": 3
+          }
+        ]
+      ]
+    },
+    "Image Generation Prompt1": {
+      "main": [
+        [
+          {
+            "node": "Generate Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model3": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Image Generation Prompt1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "9c404735-9e2d-4dfe-8639-7258080f476e",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "ff184010ac1078b0ba4bf6038197d62c1d3661de02d25152f68c46add49345ff"
+  },
+  "id": "h2nMQiDdN6f3TORh",
+  "tags": []
+}
